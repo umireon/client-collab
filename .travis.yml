@@ -8,4 +8,4 @@ deploy:
   domain: umireon
   on:
     repo: umireon/client-collab
-    branch: deploy
+    on: deploy
