@@ -5,7 +5,7 @@ deploy:
   password:
     secure: g6qrrgnsEfl3wEZRwLHgOLwWg6foIaeMRXRYxhGUOd2gptoCFTd4LAcCTTibV8sOz1drcVYUKDrDYzSR/D/d09chQsSloUOjJp2u6vjWgRM/tmqhAa8/y93DdCALtuIt8m67VpkJBRVgfhPk/boSwREHtVCiHx8uMBoeLomsJUs=
   app: client-collab
-  domain: umireon.rhcloud.com
+  domain: clientcollab-umireon.rhcloud.com
   on:
     repo: umireon/client-collab
     branch: feature/travisci
