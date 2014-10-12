@@ -8,8 +8,4 @@ build:
   after-steps:
     - 1syo/idobata-notify@0.2.2:
         token: $IDOBATA_TOKEN
-deploy:
-  after-steps:
-    - 1syo/idobata-notify@0.2.2:
-        token: $IDOBATA_TOKEN
 
