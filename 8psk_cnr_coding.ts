@@ -117,6 +117,18 @@ class Psk8Demodulator {
     }
 }
 
+class BasebandGenerator {
+  private _m: number;
+
+  constructor(m: number) {
+    this._m = m;
+  }
+
+  generate(u0: number): number {
+    return Math.floor(u0 * this._m);
+  }
+}
+
 class AwgnGenerator {
   private _pi2 = Math.PI * 2;
   private _sigma: number;
@@ -163,6 +175,7 @@ class CanvasView {
 
 class SimulatorFacade {
   public coding: Coding;
+  public baseband: BasebandGenerator;
   public awgn: AwgnGenerator;
   public modulator: PskModulator;
   public demodulator: Psk8Demodulator;
@@ -170,6 +183,7 @@ class SimulatorFacade {
 
   constructor() {
     this.coding = new GrayCoding(3);
+    this.baseband = new BasebandGenerator(8);
     this.awgn = new AwgnGenerator(0.223);
     this.modulator = new PskModulator(8);
     this.demodulator = new Psk8Demodulator();
@@ -207,6 +221,7 @@ class SimulatorFacade {
     inputMpsk.addEventListener('change', function() {
       var m = Math.floor(Number(inputMpsk.value));
       that.modulator = new PskModulator(m);
+      that.baseband = new BasebandGenerator(m);
     });
   }
 }
@@ -226,6 +241,7 @@ class Main {
     var mag = 100;
     var bufsize = 500;
     var ctx = this._facade.canvas.context;
+    var bb = this._facade.baseband;
     var coding = this._facade.coding;
     var mod = this._facade.modulator;
     var demod = this._facade.demodulator;
@@ -246,7 +262,7 @@ class Main {
         var u1 = Math.random();
         var u2 = Math.random();
 
-        symbol.tx_code = Math.floor(u0 * 64);
+        symbol.tx_code = bb.generate(u0);
         symbol.tx_sym = coding.decode(symbol.tx_code);
         symbol.vect = mod.modulate(symbol.tx_sym);
         symbol.vect.add(awgn.generate(u1, u2));

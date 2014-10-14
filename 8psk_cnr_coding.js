@@ -113,6 +113,15 @@ var Psk8Demodulator = (function () {
     };
     return Psk8Demodulator;
 })();
+var BasebandGenerator = (function () {
+    function BasebandGenerator(m) {
+        this._m = m;
+    }
+    BasebandGenerator.prototype.generate = function (u0) {
+        return Math.floor(u0 * this._m);
+    };
+    return BasebandGenerator;
+})();
 var AwgnGenerator = (function () {
     function AwgnGenerator(sigma) {
         this._pi2 = Math.PI * 2;
@@ -148,6 +157,7 @@ var SimulatorFacade = (function () {
     function SimulatorFacade() {
         this.canvas = new CanvasView;
         this.coding = new GrayCoding(3);
+        this.baseband = new BasebandGenerator(8);
         this.awgn = new AwgnGenerator(0.223);
         this.modulator = new PskModulator(8);
         this.demodulator = new Psk8Demodulator();
@@ -183,6 +193,7 @@ var SimulatorFacade = (function () {
         inputMpsk.addEventListener('change', function () {
             var m = Math.floor(Number(inputMpsk.value));
             that.modulator = new PskModulator(m);
+            that.baseband = new BasebandGenerator(m);
         });
     };
     return SimulatorFacade;
@@ -204,6 +215,7 @@ var Main = (function () {
         var mag = 100;
         var bufsize = 500;
         var ctx = this._facade.canvas.context;
+        var bb = this._facade.baseband;
         var coding = this._facade.coding;
         var mod = this._facade.modulator;
         var demod = this._facade.demodulator;
@@ -219,7 +231,7 @@ var Main = (function () {
                 var u0 = Math.random();
                 var u1 = Math.random();
                 var u2 = Math.random();
-                symbol.tx_code = Math.floor(u0 * 64);
+                symbol.tx_code = bb.generate(u0);
                 symbol.tx_sym = coding.decode(symbol.tx_code);
                 symbol.vect = mod.modulate(symbol.tx_sym);
                 symbol.vect.add(awgn.generate(u1, u2));
