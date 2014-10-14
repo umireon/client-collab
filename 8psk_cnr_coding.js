@@ -153,6 +153,7 @@ var SimulatorFacade = (function () {
         this.demodulator = new Psk8Demodulator();
         this.listenOnCoding();
         this.listenOnCnr();
+        this.listenOnMpsk();
     }
     SimulatorFacade.prototype.listenOnCoding = function () {
         var that = this;
@@ -174,6 +175,14 @@ var SimulatorFacade = (function () {
             var cnr = Math.pow(10, cnrdb);
             var sigma = Math.sqrt(0.5 / cnr);
             that.awgn = new AwgnGenerator(sigma);
+        });
+    };
+    SimulatorFacade.prototype.listenOnMpsk = function () {
+        var that = this;
+        var inputMpsk = document.getElementById('mpsk');
+        inputMpsk.addEventListener('change', function () {
+            var m = Math.floor(Number(inputMpsk.value));
+            that.modulator = new PskModulator(m);
         });
     };
     return SimulatorFacade;
@@ -210,33 +219,23 @@ var Main = (function () {
                 var u0 = Math.random();
                 var u1 = Math.random();
                 var u2 = Math.random();
-                symbol.tx_code = Math.floor(u0 * 8);
+                symbol.tx_code = Math.floor(u0 * 64);
                 symbol.tx_sym = coding.decode(symbol.tx_code);
                 symbol.vect = mod.modulate(symbol.tx_sym);
                 symbol.vect.add(awgn.generate(u1, u2));
                 symbol.rx_sym = demod.demodulate(symbol.vect);
                 symbol.rx_code = coding.encode(symbol.rx_sym);
             }
-            for (var k = 0; k < 8; k++) {
-                ctx.fillStyle = ['darkred', 'red', 'darkred', 'darkgreen', 'lightgreen', 'black', 'gray', 'blue', 'darkblue'][k];
-                for (var j = 0; j < bufsize; j++) {
-                    var symbol = symbols[j];
-                    if (symbol.rx_code != k)
-                        continue;
-                    if (symbol.tx_code == symbol.rx_code) {
-                        var x = 150 - Math.round(mag * symbol.vect.real);
-                        var y = 200 - Math.round(mag * symbol.vect.imag);
-                        ctx.fillRect(x, y, 1, 1);
-                    }
-                    else {
-                        var d = symbol.rx_code ^ symbol.tx_code;
-                        var dist = ((d >> 2) & 1) + ((d >> 1) & 1) + (d & 1);
-                        err += dist;
-                        var x = 150 - Math.round(mag * symbol.vect.real);
-                        var y = 200 - Math.round(mag * symbol.vect.imag);
-                        ctx.fillRect(x, y, 3 + 3 * dist, 3 + 3 * dist);
-                    }
-                }
+            //for (var k = 0; k < 8; k++) {
+            //  ctx.fillStyle = ['darkred', 'red', 'darkred', 'darkgreen', 'lightgreen', 'black', 'gray', 'blue', 'darkblue'][k];
+            ctx.fillStyle = 'black';
+            for (var j = 0; j < bufsize; j++) {
+                var symbol = symbols[j];
+                //    if (symbol.rx_code != k) continue;
+                //if (symbol.tx_code == symbol.rx_code) {
+                var x = 150 - Math.round(mag * symbol.vect.real);
+                var y = 200 - Math.round(mag * symbol.vect.imag);
+                ctx.fillRect(x, y, 1, 1);
             }
         }
         this._facade.canvas.show();
