@@ -81,6 +81,10 @@ class Complex {
     this.imag = treal * oimag + timag * oreal;
     return this;
   }
+
+  public clone(): Complex {
+    return new Complex(this.real, this.imag);
+  }
 }
 
 class PskModulator {
@@ -100,6 +104,7 @@ class Psk8Demodulator {
     private rotate8 = Complex.polar(1, Math.PI / 8)
 
     demodulate(vect: Complex): number {
+      vect = vect.clone();
       vect.mul(this.rotate8);
       var quad_i = vect.real, quad_q = vect.imag;
       vect.mul(this.rotate4);
@@ -187,41 +192,38 @@ class SimulatorFacade {
     this.awgn = new AwgnGenerator(0.223);
     this.modulator = new PskModulator(8);
     this.demodulator = new Psk8Demodulator();
-    this.listenOnCoding();
-    this.listenOnCnr();
-    this.listenOnMpsk();
+    this.listen();
   }
 
-  private listenOnCoding() {
+  private listen() {
     var that = this;
     var inputCoding = <HTMLInputElement>document.getElementById('nat');
-    inputCoding.addEventListener('change', function() {
+    var inputCnr = <HTMLInputElement>document.getElementById('sigma');
+    var inputMpsk = <HTMLInputElement>document.getElementById('mpsk');
+
+    function applyCoding() {
       if (inputCoding.checked) {
         that.coding = new NaturalBinaryCoding;
       } else {
-        that.coding = new GrayCoding(3);
+        var m = Math.floor(Number(inputMpsk.value));
+        var bitWidth = Math.ceil(Math.LOG2E * Math.log(m));
+        that.coding = new GrayCoding(bitWidth);
       }
-    });
-  }
+    }
+    inputCoding.addEventListener('change', applyCoding);
 
-  private listenOnCnr() {
-    var that = this;
-    var inputCnr = <HTMLInputElement>document.getElementById('sigma');
     inputCnr.addEventListener('change', function() {
       var cnrdb = Number(inputCnr.value) / 10;
       var cnr = Math.pow(10, cnrdb);
       var sigma = Math.sqrt(0.5 / cnr);
       that.awgn = new AwgnGenerator(sigma);
     });
-  }
 
-  private listenOnMpsk() {
-    var that = this;
-    var inputMpsk = <HTMLInputElement>document.getElementById('mpsk');
     inputMpsk.addEventListener('change', function() {
       var m = Math.floor(Number(inputMpsk.value));
       that.modulator = new PskModulator(m);
       that.baseband = new BasebandGenerator(m);
+      applyCoding();
     });
   }
 }
@@ -262,36 +264,40 @@ class Main {
         var u1 = Math.random();
         var u2 = Math.random();
 
-        symbol.tx_code = bb.generate(u0);
-        symbol.tx_sym = coding.decode(symbol.tx_code);
+        symbol.tx_sym = bb.generate(u0);
+        symbol.tx_code = coding.encode(symbol.tx_sym);
         symbol.vect = mod.modulate(symbol.tx_sym);
         symbol.vect.add(awgn.generate(u1, u2));
         symbol.rx_sym = demod.demodulate(symbol.vect);
         symbol.rx_code = coding.encode(symbol.rx_sym);
       }
 
-      //for (var k = 0; k < 8; k++) {
-      //  ctx.fillStyle = ['darkred', 'red', 'darkred', 'darkgreen', 'lightgreen', 'black', 'gray', 'blue', 'darkblue'][k];
-      ctx.fillStyle = 'black';
+
+      for (var k = 0; k < 64; k++) {
+        var r = ((k & 0x1) << 7) + ((k &  0x8) << 3) + 63;
+        var g = ((k & 0x2) << 6) + ((k & 0x10) << 2) + 63;
+        var b = ((k & 0x4) << 5) + ((k & 0x20) << 1) + 63;
+        ctx.fillStyle = 'rgb(' + [r,g,b].join(',') + ')';
+
         for (var j = 0; j < bufsize; j++) {
           var symbol = symbols[j];
 
-      //    if (symbol.rx_code != k) continue;
+          if (symbol.tx_code != k) continue;
 
-          //if (symbol.tx_code == symbol.rx_code) {
-            var x = 150 - Math.round(mag * symbol.vect.real);
+          if (symbol.tx_code == symbol.rx_code) {
+            var x = 150 + Math.round(mag * symbol.vect.real);
             var y = 200 - Math.round(mag * symbol.vect.imag);
             ctx.fillRect(x, y, 1, 1);
-          /*} else {
+          } else {
             var d = symbol.rx_code ^ symbol.tx_code;
             var dist = ((d >> 2) & 1) + ((d >> 1) & 1) + (d & 1);
             err += dist;
-            var x = 150 - Math.round(mag * symbol.vect.real);
+            var x = 150 + Math.round(mag * symbol.vect.real);
             var y = 200 - Math.round(mag * symbol.vect.imag);
             ctx.fillRect(x, y, 3 + 3 * dist, 3 + 3 * dist);
-          }*/
+          }
         }
-      //}
+      }
     }
     this._facade.canvas.show();
   }
