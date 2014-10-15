@@ -99,27 +99,149 @@ class PskModulator {
   }
 }
 
-class Psk8Demodulator {
+interface Demodulator {
+  demodulate(vect: Complex): number;
+}
+
+class Psk2Demodulator implements Demodulator {
+  demodulate(vect: Complex): number {
+    return vect.real > 0 ? 0 : 1;
+  }
+}
+
+class Psk3Demodulator implements Demodulator {
+  private _cw = Complex.polar(1, -Math.PI / 6);
+  private _ccw = Complex.polar(1, Math.PI / 6);
+
+  demodulate(vect: Complex): number {
+    if (vect.imag > 0) {
+      var ccw = vect.clone().mul(this._ccw);
+      if (ccw.real < 0) {
+        return 1;
+      }
+    } else {
+      var cw = vect.clone().mul(this._cw);
+      if (cw.real < 0) {
+        return 2;
+      }
+    }
+    return 0;
+  }
+}
+
+class Psk4Demodulator implements Demodulator {
+  private _rot = Complex.polar(1, Math.PI / 4)
+  demodulate(vect: Complex): number {
+    vect = vect.clone();
+    vect.mul(this._rot);
+
+    if (vect.real > 0) {
+      return vect.imag > 0 ? 0 : 3;
+    } else {
+      return vect.imag > 0 ? 1 : 2;
+    }
+  }
+}
+
+class Psk5Demodulator implements Demodulator {
+  private _cw1_5 = Complex.polar(1, -Math.PI / 5);
+  private _cw2_5 = Complex.polar(1, -Math.PI * 2 / 5);
+  private _ccw1_5 = Complex.polar(1, Math.PI / 5);
+  private _ccw2_5 = Complex.polar(1, Math.PI * 2 / 5);
+
+  demodulate(vect: Complex): number {
+    if (vect.imag > 0) {
+      var u1_5 = vect.clone().mul(this._cw1_5);
+      if (u1_5.imag > 0) {
+        return u1_5.mul(this._cw2_5).imag > 0 ? 2 : 1;
+      }
+    } else {
+      var l1_5 = vect.clone().mul(this._ccw1_5);
+      if (l1_5.imag < 0) {
+        return l1_5.mul(this._ccw2_5).imag > 0 ? 4 : 3;
+      }
+    }
+    return 0;
+  }
+}
+
+class Psk6Demodulator implements Demodulator {
+  private _cw = Complex.polar(1, -Math.PI / 6);
+  private _ccw = Complex.polar(1, Math.PI / 6);
+
+  demodulate(vect: Complex): number {
+    var pow2 = vect.clone().mul(vect);
+    var pow3realpos = pow2.clone().mul(vect).real > 0;
+    if (pow2.imag > 0) {
+      if (pow2.mul(this._ccw).real < 0) {
+        return pow3realpos ? 4 : 1;
+      }
+    } else {
+      if (pow2.mul(this._cw).real < 0) {
+        return pow3realpos ? 2 : 5;
+      }
+    }
+    return pow3realpos ? 0 : 3;
+  }
+}
+
+class Psk7Demodulator implements Demodulator {
+  private _cw1_7 = Complex.polar(1, -Math.PI / 7);
+  private _cw2_7 = Complex.polar(1, -Math.PI * 2 / 7);
+  private _cw3_7 = Complex.polar(1, -Math.PI * 3 / 7);
+  private _ccw1_7 = Complex.polar(1, Math.PI / 7);
+  private _ccw2_7 = Complex.polar(1, Math.PI * 2 / 7);
+  private _ccw3_7 = Complex.polar(1, Math.PI * 3 / 7);
+
+  demodulate(vect: Complex): number {
+    if (vect.imag > 0) {
+      var u3_7 = vect.clone().mul(this._cw3_7);
+      if (u3_7.imag > 0) {
+        return u3_7.mul(this._cw2_7).imag > 0 ? 3 : 2;
+      } else {
+        if (u3_7.mul(this._ccw2_7).imag > 0) {
+          return 1;
+        }
+      }
+    } else {
+      var l3_7 = vect.clone().mul(this._ccw3_7);
+      if (l3_7.imag < 0) {
+        return l3_7.mul(this._ccw2_7).imag > 0 ? 5 : 4;
+      } else {
+        if (l3_7.mul(this._cw2_7).imag < 0) {
+          return 6;
+        }
+      }
+    }
+    return 0;
+  }
+}
+
+class Psk8Demodulator implements Demodulator {
   private rotate4 = Complex.polar(1, Math.PI / 4)
-    private rotate8 = Complex.polar(1, Math.PI / 8)
+  private rotate8 = Complex.polar(1, Math.PI / 8)
 
-    demodulate(vect: Complex): number {
-      vect = vect.clone();
-      vect.mul(this.rotate8);
-      var quad_i = vect.real, quad_q = vect.imag;
-      vect.mul(this.rotate4);
-      var half_i = vect.real, half_q = vect.imag;
+  demodulate(vect: Complex): number {
+    vect = vect.clone();
+    vect.mul(this.rotate8);
+    var quad_i = vect.real, quad_q = vect.imag;
+    vect.mul(this.rotate4);
+    var half_i = vect.real, half_q = vect.imag;
 
-      if (quad_i > 0 && quad_q > 0) {
+    if (quad_i > 0) {
+      if (quad_q > 0) {
         return half_i > 0 ? 0 : 1;
-      } else if (quad_i > 0 && quad_q < 0) {
+      } else {
         return half_q > 0 ? 7 : 6;
-      } else if (quad_i < 0 && quad_q > 0) {
+      }
+    } else {
+      if (quad_q > 0) {
         return half_q > 0 ? 2 : 3;
       } else {
         return half_i > 0 ? 5 : 4;
       }
     }
+  }
 }
 
 class BasebandGenerator {
@@ -183,7 +305,7 @@ class SimulatorFacade {
   public baseband: BasebandGenerator;
   public awgn: AwgnGenerator;
   public modulator: PskModulator;
-  public demodulator: Psk8Demodulator;
+  public demodulator: Demodulator;
   public canvas = new CanvasView;
 
   constructor() {
@@ -210,20 +332,37 @@ class SimulatorFacade {
         that.coding = new GrayCoding(bitWidth);
       }
     }
+
+    function applyMpsk() {
+      var m = Math.floor(Number(inputMpsk.value));
+      that.modulator = new PskModulator(m);
+      if (m == 2) {
+        that.demodulator = new Psk2Demodulator();
+      } else if (m == 3) {
+        that.demodulator = new Psk3Demodulator();
+      } else if (m == 4) {
+        that.demodulator = new Psk4Demodulator();
+      } else if (m == 5) {
+        that.demodulator = new Psk5Demodulator();
+      } else if (m == 6) {
+        that.demodulator = new Psk6Demodulator();
+      } else if (m == 7) {
+        that.demodulator = new Psk7Demodulator();
+      } else {
+        that.demodulator = new Psk8Demodulator();
+      }
+      that.baseband = new BasebandGenerator(m);
+      applyCoding();
+    }
+
     inputCoding.addEventListener('change', applyCoding);
+    inputMpsk.addEventListener('change', applyMpsk);
 
     inputCnr.addEventListener('change', function() {
       var cnrdb = Number(inputCnr.value) / 10;
       var cnr = Math.pow(10, cnrdb);
       var sigma = Math.sqrt(0.5 / cnr);
       that.awgn = new AwgnGenerator(sigma);
-    });
-
-    inputMpsk.addEventListener('change', function() {
-      var m = Math.floor(Number(inputMpsk.value));
-      that.modulator = new PskModulator(m);
-      that.baseband = new BasebandGenerator(m);
-      applyCoding();
     });
   }
 }
