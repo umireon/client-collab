@@ -1,106 +1,445 @@
-﻿function encode(sym) {
-    var nat = <HTMLInputElement>document.getElementById("nat");
-    if (nat.checked) {
-        return sym;
-    } else {
-        return [0, 1, 3, 2, 6, 7, 5, 4][sym];
+﻿class Coding {
+  private _enc: number[];
+  private _dec: number[];
+
+  constructor(encoder: number[]) {
+    this._enc = encoder;
+
+    this._dec = [];
+    var loop = encoder.length;
+    for (var i = 0; i < loop; i++) {
+      this._dec[this._enc[i]] = i;
     }
+  }
+
+  public encode(index: number): number {
+    return this._enc[index];
+  }
+
+  public decode(code: number): number {
+    return this._dec[code];
+  }
+};
+
+class GrayCoding extends Coding {
+  constructor(bitWidth: number) {
+    var encoder: number[] = [];
+    var loop = (1 << bitWidth);
+    for (var i = 0; i < loop; i++) {
+      encoder[i] = i ^ (i >> 1);
+    }
+    super(encoder);
+  }
+};
+
+class NaturalBinaryCoding extends Coding {
+  constructor() {
+    super([]);
+  }
+
+  public encode(index: number): number {
+    return index;
+  }
+
+  public decode(code: number): number {
+    return code;
+  }
+};
+
+class Complex {
+  public static polar(r: number, theta: number): Complex {
+    return new Complex(r * Math.cos(theta), r * Math.sin(theta));
+  }
+
+  public real: number;
+  public imag: number;
+
+  constructor(r: number, i: number) {
+    this.real = r;
+    this.imag = i;
+  }
+
+  /* destructive */
+  public add(other: Complex): Complex {
+    this.real += other.real;
+    this.imag += other.imag;
+    return this;
+  }
+
+  /* destructive */
+  public sub(other: Complex): Complex {
+    this.real -= other.real;
+    this.imag -= other.imag;
+    return this;
+  }
+
+  /* destructive */
+  public mul(other: Complex): Complex {
+    var treal = this.real, timag = this.imag;
+    var oreal = other.real, oimag = other.imag;
+    this.real = treal * oreal - timag * oimag;
+    this.imag = treal * oimag + timag * oreal;
+    return this;
+  }
+
+  public clone(): Complex {
+    return new Complex(this.real, this.imag);
+  }
 }
 
-function decode(code) {
-    var nat = <HTMLInputElement>document.getElementById("nat");
-    if (nat.checked) {
-        return code;
-    } else {
-        return [0, 1, 3, 2, 7, 6, 4, 5][code];
-    }
+class PskModulator {
+  private _unit: number;
+
+  constructor(m: number) {
+    this._unit = 2 * Math.PI / m;
+  }
+
+  modulate(sym: number): Complex {
+    return Complex.polar(1, sym * this._unit);
+  }
 }
 
-function do_qpsk() {
-    var c = <HTMLCanvasElement>document.getElementById("c");
-    var ctx = c.getContext("2d");
+interface Demodulator {
+  demodulate(vect: Complex): number;
+}
+
+class Psk2Demodulator implements Demodulator {
+  demodulate(vect: Complex): number {
+    return vect.real > 0 ? 0 : 1;
+  }
+}
+
+class Psk3Demodulator implements Demodulator {
+  private _cw = Complex.polar(1, -Math.PI / 6);
+  private _ccw = Complex.polar(1, Math.PI / 6);
+
+  demodulate(vect: Complex): number {
+    if (vect.imag > 0) {
+      var ccw = vect.clone().mul(this._ccw);
+      if (ccw.real < 0) {
+        return 1;
+      }
+    } else {
+      var cw = vect.clone().mul(this._cw);
+      if (cw.real < 0) {
+        return 2;
+      }
+    }
+    return 0;
+  }
+}
+
+class Psk4Demodulator implements Demodulator {
+  private _rot = Complex.polar(1, Math.PI / 4)
+  demodulate(vect: Complex): number {
+    vect = vect.clone();
+    vect.mul(this._rot);
+
+    if (vect.real > 0) {
+      return vect.imag > 0 ? 0 : 3;
+    } else {
+      return vect.imag > 0 ? 1 : 2;
+    }
+  }
+}
+
+class Psk5Demodulator implements Demodulator {
+  private _cw1_5 = Complex.polar(1, -Math.PI / 5);
+  private _cw2_5 = Complex.polar(1, -Math.PI * 2 / 5);
+  private _ccw1_5 = Complex.polar(1, Math.PI / 5);
+  private _ccw2_5 = Complex.polar(1, Math.PI * 2 / 5);
+
+  demodulate(vect: Complex): number {
+    if (vect.imag > 0) {
+      var u1_5 = vect.clone().mul(this._cw1_5);
+      if (u1_5.imag > 0) {
+        return u1_5.mul(this._cw2_5).imag > 0 ? 2 : 1;
+      }
+    } else {
+      var l1_5 = vect.clone().mul(this._ccw1_5);
+      if (l1_5.imag < 0) {
+        return l1_5.mul(this._ccw2_5).imag > 0 ? 4 : 3;
+      }
+    }
+    return 0;
+  }
+}
+
+class Psk6Demodulator implements Demodulator {
+  private _cw = Complex.polar(1, -Math.PI / 6);
+  private _ccw = Complex.polar(1, Math.PI / 6);
+
+  demodulate(vect: Complex): number {
+    var pow2 = vect.clone().mul(vect);
+    var pow3realpos = pow2.clone().mul(vect).real > 0;
+    if (pow2.imag > 0) {
+      if (pow2.mul(this._ccw).real < 0) {
+        return pow3realpos ? 4 : 1;
+      }
+    } else {
+      if (pow2.mul(this._cw).real < 0) {
+        return pow3realpos ? 2 : 5;
+      }
+    }
+    return pow3realpos ? 0 : 3;
+  }
+}
+
+class Psk7Demodulator implements Demodulator {
+  private _cw1_7 = Complex.polar(1, -Math.PI / 7);
+  private _cw2_7 = Complex.polar(1, -Math.PI * 2 / 7);
+  private _cw3_7 = Complex.polar(1, -Math.PI * 3 / 7);
+  private _ccw1_7 = Complex.polar(1, Math.PI / 7);
+  private _ccw2_7 = Complex.polar(1, Math.PI * 2 / 7);
+  private _ccw3_7 = Complex.polar(1, Math.PI * 3 / 7);
+
+  demodulate(vect: Complex): number {
+    if (vect.imag > 0) {
+      var u3_7 = vect.clone().mul(this._cw3_7);
+      if (u3_7.imag > 0) {
+        return u3_7.mul(this._cw2_7).imag > 0 ? 3 : 2;
+      } else {
+        if (u3_7.mul(this._ccw2_7).imag > 0) {
+          return 1;
+        }
+      }
+    } else {
+      var l3_7 = vect.clone().mul(this._ccw3_7);
+      if (l3_7.imag < 0) {
+        return l3_7.mul(this._ccw2_7).imag > 0 ? 5 : 4;
+      } else {
+        if (l3_7.mul(this._cw2_7).imag < 0) {
+          return 6;
+        }
+      }
+    }
+    return 0;
+  }
+}
+
+class Psk8Demodulator implements Demodulator {
+  private rotate4 = Complex.polar(1, Math.PI / 4)
+  private rotate8 = Complex.polar(1, Math.PI / 8)
+
+  demodulate(vect: Complex): number {
+    vect = vect.clone();
+    vect.mul(this.rotate8);
+    var quad_i = vect.real, quad_q = vect.imag;
+    vect.mul(this.rotate4);
+    var half_i = vect.real, half_q = vect.imag;
+
+    if (quad_i > 0) {
+      if (quad_q > 0) {
+        return half_i > 0 ? 0 : 1;
+      } else {
+        return half_q > 0 ? 7 : 6;
+      }
+    } else {
+      if (quad_q > 0) {
+        return half_q > 0 ? 2 : 3;
+      } else {
+        return half_i > 0 ? 5 : 4;
+      }
+    }
+  }
+}
+
+class BasebandGenerator {
+  private _m: number;
+
+  constructor(m: number) {
+    this._m = m;
+  }
+
+  generate(u0: number): number {
+    return Math.floor(u0 * this._m);
+  }
+}
+
+class AwgnGenerator {
+  private _pi2 = Math.PI * 2;
+  private _sigma: number;
+
+  constructor(sigma: number) {
+    this._sigma = sigma;
+  }
+
+  generate(u1: number, u2: number): Complex {
+    var a = this._sigma * Math.sqrt(-2 * Math.log(u1));
+    var t = this._pi2 * u2;
+    return new Complex(a * Math.cos(t), a * Math.sin(t));
+  }
+}
+
+class Symbol {
+  public tx_code: number;
+  public tx_sym: number;
+  public rx_code: number;
+  public rx_sym: number;
+  public vect: Complex;
+}
+
+class CanvasView {
+  private _canvas: HTMLCanvasElement;
+  private _cctx: CanvasRenderingContext2D;
+  private _shadow: HTMLCanvasElement;
+  public context: CanvasRenderingContext2D;
+
+  constructor() {
+    this._canvas = <HTMLCanvasElement>document.getElementById('c');
+    this._cctx = <CanvasRenderingContext2D>this._canvas.getContext('2d');
+
+    this._shadow = <HTMLCanvasElement>document.createElement('canvas');
+    this._shadow.width = this._canvas.width;
+    this._shadow.height = this._canvas.height;
+    this.context = <CanvasRenderingContext2D>this._shadow.getContext('2d');
+  }
+
+  public show() {
+    this._cctx.drawImage(this._shadow, 0, 0);
+  }
+}
+
+class SimulatorFacade {
+  public coding: Coding;
+  public baseband: BasebandGenerator;
+  public awgn: AwgnGenerator;
+  public modulator: PskModulator;
+  public demodulator: Demodulator;
+  public canvas = new CanvasView;
+
+  constructor() {
+    this.coding = new GrayCoding(3);
+    this.baseband = new BasebandGenerator(8);
+    this.awgn = new AwgnGenerator(0.223);
+    this.modulator = new PskModulator(8);
+    this.demodulator = new Psk8Demodulator();
+    this.listen();
+  }
+
+  private listen() {
+    var that = this;
+    var inputCoding = <HTMLInputElement>document.getElementById('nat');
+    var inputCnr = <HTMLInputElement>document.getElementById('sigma');
+    var inputMpsk = <HTMLInputElement>document.getElementById('mpsk');
+
+    function applyCoding() {
+      if (inputCoding.checked) {
+        that.coding = new NaturalBinaryCoding;
+      } else {
+        var m = Math.floor(Number(inputMpsk.value));
+        var bitWidth = Math.ceil(Math.LOG2E * Math.log(m));
+        that.coding = new GrayCoding(bitWidth);
+      }
+    }
+
+    function applyMpsk() {
+      var m = Math.floor(Number(inputMpsk.value));
+      that.modulator = new PskModulator(m);
+      if (m == 2) {
+        that.demodulator = new Psk2Demodulator();
+      } else if (m == 3) {
+        that.demodulator = new Psk3Demodulator();
+      } else if (m == 4) {
+        that.demodulator = new Psk4Demodulator();
+      } else if (m == 5) {
+        that.demodulator = new Psk5Demodulator();
+      } else if (m == 6) {
+        that.demodulator = new Psk6Demodulator();
+      } else if (m == 7) {
+        that.demodulator = new Psk7Demodulator();
+      } else {
+        that.demodulator = new Psk8Demodulator();
+      }
+      that.baseband = new BasebandGenerator(m);
+      applyCoding();
+    }
+
+    inputCoding.addEventListener('change', applyCoding);
+    inputMpsk.addEventListener('change', applyMpsk);
+
+    inputCnr.addEventListener('change', function() {
+      var cnrdb = Number(inputCnr.value) / 10;
+      var cnr = Math.pow(10, cnrdb);
+      var sigma = Math.sqrt(0.5 / cnr);
+      that.awgn = new AwgnGenerator(sigma);
+    });
+  }
+}
+
+class Main {
+  private _facade = new SimulatorFacade;
+
+  animate_psk8() {
+    var that = this;
+    (function loop() {
+      requestAnimationFrame(function() {that.do_psk8();});
+      setTimeout(loop, 1000 / 15);
+    })();
+  }
+
+  do_psk8(): void {
     var mag = 100;
-    ctx.clearRect(0, 0, 800, 800);
+    var bufsize = 500;
+    var ctx = this._facade.canvas.context;
+    var bb = this._facade.baseband;
+    var coding = this._facade.coding;
+    var mod = this._facade.modulator;
+    var demod = this._facade.demodulator;
+    var awgn = this._facade.awgn;
 
-    var sigma_input = <HTMLInputElement>document.getElementById("sigma");
-    var sigma = Math.sqrt(0.5 / Math.pow(10, Number(sigma_input.value) / 10));
-    //ctx.globalAlpha = 0.6;
+    ctx.fillStyle = 'white';
+    ctx.fillRect(0, 0, 400, 400);
 
     var err = 0;
-    for (var i = 0; i < 10000; i++) {
-        var u0 = Math.random(), u1 = Math.random(), u2 = Math.random();
-        var tx_code = Math.floor(u0 * 8);
-        var tx_sym = decode(tx_code);
+    var symbols: Symbol[] = new Array(bufsize);
 
-        var si = Math.cos(Math.PI * tx_sym / 4);
-        var sq = Math.sin(Math.PI * tx_sym / 4);
-        var sig_sq_mlu1_m2 = sigma * Math.sqrt(-2 * Math.log(u1));
-        var piu2_2 = 2 * Math.PI * u2;
-        var ni = sig_sq_mlu1_m2 * Math.cos(piu2_2);
-        var nq = sig_sq_mlu1_m2 * Math.sin(piu2_2);
-        var zi = si + ni;
-        var zq = sq + nq;
+    for (var i = 0; i < 20; i++) {
+      for (var j = 0; j < bufsize; j++) {
+        symbols[j] = new Symbol();
+        var symbol = symbols[j];
 
-        var ri = Math.cos(Math.PI / 8);
-        var rq = Math.sin(Math.PI / 8);
+        var u0 = Math.random();
+        var u1 = Math.random();
+        var u2 = Math.random();
 
-        var di = zi * ri - zq * rq, dq = zi * rq + zq * ri;
+        symbol.tx_sym = bb.generate(u0);
+        symbol.tx_code = coding.encode(symbol.tx_sym);
+        symbol.vect = mod.modulate(symbol.tx_sym);
+        symbol.vect.add(awgn.generate(u1, u2));
+        symbol.rx_sym = demod.demodulate(symbol.vect);
+        symbol.rx_code = coding.encode(symbol.rx_sym);
+      }
 
-        var rri = Math.cos(Math.PI / 4);
-        var rrq = Math.sin(Math.PI / 4);
-        var rrri = Math.cos(-Math.PI / 4);
-        var rrrq = Math.sin(-Math.PI / 4);
-        var cwi = di * rri - dq * rrq, cwq = di * rrq + dq * rri;
 
-        var rx_sym;
-        if (di > 0 && dq > 0) {
-            if (cwi > 0) {
-                ctx.fillStyle = "darkred";
-                rx_sym = 0;
-            } else {
-                ctx.fillStyle = "red"
-				rx_sym = 1;
-            }
-        } else if (di > 0 && dq < 0) {
-            if (cwq > 0) {
-                ctx.fillStyle = "darkblue";
-                rx_sym = 7;
-            } else {
-                ctx.fillStyle = "blue"
-				rx_sym = 6;
-            }
-        } else if (di < 0 && dq > 0) {
-            if (cwq > 0) {
-                ctx.fillStyle = "darkgreen";
-                rx_sym = 2;
-            } else {
-                ctx.fillStyle = "lightgreen"
-				rx_sym = 3;
-            }
-        } else {
-            if (cwi > 0) {
-                ctx.fillStyle = "gray";
-                rx_sym = 5;
-            } else {
-                ctx.fillStyle = "black"
-				rx_sym = 4;
-            }
-        }
+      for (var k = 0; k < 64; k++) {
+        var r = ((k & 0x1) << 7) + ((k &  0x8) << 3) + 63;
+        var g = ((k & 0x2) << 6) + ((k & 0x10) << 2) + 63;
+        var b = ((k & 0x4) << 5) + ((k & 0x20) << 1) + 63;
+        ctx.fillStyle = 'rgb(' + [r,g,b].join(',') + ')';
 
-        var rx_code = encode(rx_sym);
+        for (var j = 0; j < bufsize; j++) {
+          var symbol = symbols[j];
 
-        if (tx_sym == rx_sym) {
-            ctx.fillRect(150 + mag * zi, 200 + mag * zq, 1, 1);
-        } else {
-            var d = rx_code ^ tx_code;
+          if (symbol.tx_code != k) continue;
+
+          if (symbol.tx_code == symbol.rx_code) {
+            var x = 150 + Math.round(mag * symbol.vect.real);
+            var y = 200 - Math.round(mag * symbol.vect.imag);
+            ctx.fillRect(x, y, 1, 1);
+          } else {
+            var d = symbol.rx_code ^ symbol.tx_code;
             var dist = ((d >> 2) & 1) + ((d >> 1) & 1) + (d & 1);
             err += dist;
-            ctx.fillRect(150 + mag * zi, 200 + mag * zq, 3 + 3 * dist, 3 + 3 * dist);
+            var x = 150 + Math.round(mag * symbol.vect.real);
+            var y = 200 - Math.round(mag * symbol.vect.imag);
+            ctx.fillRect(x, y, 3 + 3 * dist, 3 + 3 * dist);
+          }
         }
+      }
     }
+    this._facade.canvas.show();
+  }
+}
 
-    var pb = <HTMLInputElement>document.getElementById("pb");
-    pb.value = (Math.LN10 * Math.log(err / 30000.0)).toPrecision(20);
-} 
-
-setInterval(do_qpsk, 50);
+new Main().animate_psk8();
