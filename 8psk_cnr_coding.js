@@ -101,19 +101,18 @@ var Psk2Demodulator = (function () {
 })();
 var Psk3Demodulator = (function () {
     function Psk3Demodulator() {
-        this._cw = Complex.polar(1, -Math.PI / 6);
-        this._ccw = Complex.polar(1, Math.PI / 6);
+        this._cw1_3 = Complex.polar(1, -Math.PI / 3);
+        this._ccw1_3 = Complex.polar(1, Math.PI / 3);
     }
     Psk3Demodulator.prototype.demodulate = function (vect) {
-        if (vect.imag > 0) {
-            var ccw = vect.clone().mul(this._ccw);
-            if (ccw.real < 0) {
+        var v = vect.clone();
+        if (v.imag > 0) {
+            if (v.mul(this._cw1_3).imag > 0) {
                 return 1;
             }
         }
         else {
-            var cw = vect.clone().mul(this._cw);
-            if (cw.real < 0) {
+            if (v.mul(this._ccw1_3).imag < 0) {
                 return 2;
             }
         }
@@ -123,16 +122,15 @@ var Psk3Demodulator = (function () {
 })();
 var Psk4Demodulator = (function () {
     function Psk4Demodulator() {
-        this._rot = Complex.polar(1, Math.PI / 4);
+        this._ccw1_4 = Complex.polar(1, Math.PI / 4);
     }
     Psk4Demodulator.prototype.demodulate = function (vect) {
-        vect = vect.clone();
-        vect.mul(this._rot);
-        if (vect.real > 0) {
-            return vect.imag > 0 ? 0 : 3;
+        var v = vect.clone();
+        if (v.mul(this._ccw1_4).real > 0) {
+            return v.imag > 0 ? 0 : 3;
         }
         else {
-            return vect.imag > 0 ? 1 : 2;
+            return v.imag > 0 ? 1 : 2;
         }
     };
     return Psk4Demodulator;
@@ -145,16 +143,15 @@ var Psk5Demodulator = (function () {
         this._ccw2_5 = Complex.polar(1, Math.PI * 2 / 5);
     }
     Psk5Demodulator.prototype.demodulate = function (vect) {
+        var v = vect.clone();
         if (vect.imag > 0) {
-            var u1_5 = vect.clone().mul(this._cw1_5);
-            if (u1_5.imag > 0) {
-                return u1_5.mul(this._cw2_5).imag > 0 ? 2 : 1;
+            if (v.mul(this._cw1_5).imag > 0) {
+                return v.mul(this._cw2_5).imag > 0 ? 2 : 1;
             }
         }
         else {
-            var l1_5 = vect.clone().mul(this._ccw1_5);
-            if (l1_5.imag < 0) {
-                return l1_5.mul(this._ccw2_5).imag > 0 ? 4 : 3;
+            if (v.mul(this._ccw1_5).imag < 0) {
+                return v.mul(this._ccw2_5).imag > 0 ? 4 : 3;
             }
         }
         return 0;
@@ -165,21 +162,31 @@ var Psk6Demodulator = (function () {
     function Psk6Demodulator() {
         this._cw = Complex.polar(1, -Math.PI / 6);
         this._ccw = Complex.polar(1, Math.PI / 6);
+        this._psk3 = new Psk3Demodulator;
     }
     Psk6Demodulator.prototype.demodulate = function (vect) {
-        var pow2 = vect.clone().mul(vect);
-        var pow3realpos = pow2.clone().mul(vect).real > 0;
-        if (pow2.imag > 0) {
-            if (pow2.mul(this._ccw).real < 0) {
-                return pow3realpos ? 4 : 1;
+        var v = vect.clone();
+        var dem3 = this._psk3.demodulate(v.mul(vect));
+        if (vect.real > 0) {
+            switch (dem3) {
+                case 0:
+                    return 0;
+                case 1:
+                    return 1;
+                case 2:
+                    return 5;
             }
         }
         else {
-            if (pow2.mul(this._cw).real < 0) {
-                return pow3realpos ? 2 : 5;
+            switch (dem3) {
+                case 0:
+                    return 3;
+                case 1:
+                    return 4;
+                case 2:
+                    return 2;
             }
         }
-        return pow3realpos ? 0 : 3;
     };
     return Psk6Demodulator;
 })();
@@ -193,24 +200,23 @@ var Psk7Demodulator = (function () {
         this._ccw3_7 = Complex.polar(1, Math.PI * 3 / 7);
     }
     Psk7Demodulator.prototype.demodulate = function (vect) {
-        if (vect.imag > 0) {
-            var u3_7 = vect.clone().mul(this._cw3_7);
-            if (u3_7.imag > 0) {
-                return u3_7.mul(this._cw2_7).imag > 0 ? 3 : 2;
+        var v = vect.clone();
+        if (v.imag > 0) {
+            if (v.mul(this._cw3_7).imag > 0) {
+                return v.mul(this._cw2_7).imag > 0 ? 3 : 2;
             }
             else {
-                if (u3_7.mul(this._ccw2_7).imag > 0) {
+                if (v.mul(this._ccw2_7).imag > 0) {
                     return 1;
                 }
             }
         }
         else {
-            var l3_7 = vect.clone().mul(this._ccw3_7);
-            if (l3_7.imag < 0) {
-                return l3_7.mul(this._ccw2_7).imag > 0 ? 5 : 4;
+            if (v.mul(this._ccw3_7).imag < 0) {
+                return v.mul(this._ccw2_7).imag > 0 ? 5 : 4;
             }
             else {
-                if (l3_7.mul(this._cw2_7).imag < 0) {
+                if (v.mul(this._cw2_7).imag < 0) {
                     return 6;
                 }
             }
@@ -248,6 +254,84 @@ var Psk8Demodulator = (function () {
         }
     };
     return Psk8Demodulator;
+})();
+var Psk9Demodulator = (function () {
+    function Psk9Demodulator() {
+        this._psk3 = new Psk3Demodulator;
+    }
+    Psk9Demodulator.prototype.demodulate = function (vect) {
+        var v = vect.clone();
+        var dem9 = this._psk3.demodulate(v);
+        var dem3 = this._psk3.demodulate(v.mul(vect).mul(vect));
+        switch (dem9) {
+            case 0:
+                switch (dem3) {
+                    case 0:
+                        return 0;
+                    case 1:
+                        return 1;
+                    case 2:
+                        return 8;
+                }
+            case 1:
+                switch (dem3) {
+                    case 0:
+                        return 3;
+                    case 1:
+                        return 4;
+                    case 2:
+                        return 2;
+                }
+            case 2:
+                switch (dem3) {
+                    case 0:
+                        return 6;
+                    case 1:
+                        return 7;
+                    case 2:
+                        return 5;
+                }
+        }
+    };
+    return Psk9Demodulator;
+})();
+var Psk10Demodulator = (function () {
+    function Psk10Demodulator() {
+        this._psk5 = new Psk5Demodulator;
+    }
+    Psk10Demodulator.prototype.demodulate = function (vect) {
+        var v = vect.clone();
+        var dem5 = this._psk5.demodulate(v.mul(vect));
+        if (vect.real > 0) {
+            switch (dem5) {
+                case 0:
+                    return 0;
+                case 1:
+                    return 1;
+                case 2:
+                    return 2;
+                case 3:
+                    return 8;
+                case 4:
+                    return 9;
+            }
+        }
+        else {
+            switch (dem5) {
+                case 0:
+                    return 5;
+                case 1:
+                    return 6;
+                case 2:
+                    return 7;
+                case 3:
+                    return 3;
+                case 4:
+                    return 4;
+            }
+        }
+    };
+    return Psk10Demodulator;
 })();
 var BasebandGenerator = (function () {
     function BasebandGenerator(m) {
@@ -335,6 +419,15 @@ var SimulatorFacade = (function () {
             else if (m == 7) {
                 that.demodulator = new Psk7Demodulator();
             }
+            else if (m == 8) {
+                that.demodulator = new Psk8Demodulator();
+            }
+            else if (m == 9) {
+                that.demodulator = new Psk9Demodulator();
+            }
+            else if (m == 10) {
+                that.demodulator = new Psk10Demodulator();
+            }
             else {
                 that.demodulator = new Psk8Demodulator();
             }
@@ -399,7 +492,7 @@ var Main = (function () {
                 ctx.fillStyle = 'rgb(' + [r, g, b].join(',') + ')';
                 for (var j = 0; j < bufsize; j++) {
                     var symbol = symbols[j];
-                    if (symbol.tx_code != k)
+                    if (symbol.rx_code != k)
                         continue;
                     if (symbol.tx_code == symbol.rx_code) {
                         var x = 150 + Math.round(mag * symbol.vect.real);
@@ -408,7 +501,7 @@ var Main = (function () {
                     }
                     else {
                         var d = symbol.rx_code ^ symbol.tx_code;
-                        var dist = ((d >> 2) & 1) + ((d >> 1) & 1) + (d & 1);
+                        var dist = ((d >> 5) & 1) + ((d >> 4) & 1) + ((d >> 3) & 1) + ((d >> 2) & 1) + ((d >> 1) & 1) + (d & 1);
                         err += dist;
                         var x = 150 + Math.round(mag * symbol.vect.real);
                         var y = 200 - Math.round(mag * symbol.vect.imag);
