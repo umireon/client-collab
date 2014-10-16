@@ -110,18 +110,17 @@ class Psk2Demodulator implements Demodulator {
 }
 
 class Psk3Demodulator implements Demodulator {
-  private _cw = Complex.polar(1, -Math.PI / 6);
-  private _ccw = Complex.polar(1, Math.PI / 6);
+  private _cw1_3 = Complex.polar(1, -Math.PI / 3);
+  private _ccw1_3 = Complex.polar(1, Math.PI / 3);
 
   demodulate(vect: Complex): number {
-    if (vect.imag > 0) {
-      var ccw = vect.clone().mul(this._ccw);
-      if (ccw.real < 0) {
+    var v = vect.clone();
+    if (v.imag > 0) {
+      if (v.mul(this._cw1_3).imag > 0) {
         return 1;
       }
     } else {
-      var cw = vect.clone().mul(this._cw);
-      if (cw.real < 0) {
+      if (v.mul(this._ccw1_3).imag < 0) {
         return 2;
       }
     }
@@ -130,15 +129,13 @@ class Psk3Demodulator implements Demodulator {
 }
 
 class Psk4Demodulator implements Demodulator {
-  private _rot = Complex.polar(1, Math.PI / 4)
+  private _ccw1_4 = Complex.polar(1, Math.PI / 4)
   demodulate(vect: Complex): number {
-    vect = vect.clone();
-    vect.mul(this._rot);
-
-    if (vect.real > 0) {
-      return vect.imag > 0 ? 0 : 3;
+    var v = vect.clone();
+    if (v.mul(this._ccw1_4).real > 0) {
+      return v.imag > 0 ? 0 : 3;
     } else {
-      return vect.imag > 0 ? 1 : 2;
+      return v.imag > 0 ? 1 : 2;
     }
   }
 }
@@ -150,15 +147,14 @@ class Psk5Demodulator implements Demodulator {
   private _ccw2_5 = Complex.polar(1, Math.PI * 2 / 5);
 
   demodulate(vect: Complex): number {
+    var v = vect.clone();
     if (vect.imag > 0) {
-      var u1_5 = vect.clone().mul(this._cw1_5);
-      if (u1_5.imag > 0) {
-        return u1_5.mul(this._cw2_5).imag > 0 ? 2 : 1;
+      if (v.mul(this._cw1_5).imag > 0) {
+        return v.mul(this._cw2_5).imag > 0 ? 2 : 1;
       }
     } else {
-      var l1_5 = vect.clone().mul(this._ccw1_5);
-      if (l1_5.imag < 0) {
-        return l1_5.mul(this._ccw2_5).imag > 0 ? 4 : 3;
+      if (v.mul(this._ccw1_5).imag < 0) {
+        return v.mul(this._ccw2_5).imag > 0 ? 4 : 3;
       }
     }
     return 0;
@@ -169,19 +165,24 @@ class Psk6Demodulator implements Demodulator {
   private _cw = Complex.polar(1, -Math.PI / 6);
   private _ccw = Complex.polar(1, Math.PI / 6);
 
+  private _psk3 = new Psk3Demodulator;
+
   demodulate(vect: Complex): number {
-    var pow2 = vect.clone().mul(vect);
-    var pow3realpos = pow2.clone().mul(vect).real > 0;
-    if (pow2.imag > 0) {
-      if (pow2.mul(this._ccw).real < 0) {
-        return pow3realpos ? 4 : 1;
+    var v = vect.clone();
+    var dem3 = this._psk3.demodulate(v.mul(vect));
+    if (vect.real > 0) {
+      switch (dem3) {
+        case 0: return 0;
+        case 1: return 1;
+        case 2: return 5;
       }
     } else {
-      if (pow2.mul(this._cw).real < 0) {
-        return pow3realpos ? 2 : 5;
+      switch (dem3) {
+        case 0: return 3;
+        case 1: return 4;
+        case 2: return 2;
       }
     }
-    return pow3realpos ? 0 : 3;
   }
 }
 
@@ -194,21 +195,20 @@ class Psk7Demodulator implements Demodulator {
   private _ccw3_7 = Complex.polar(1, Math.PI * 3 / 7);
 
   demodulate(vect: Complex): number {
-    if (vect.imag > 0) {
-      var u3_7 = vect.clone().mul(this._cw3_7);
-      if (u3_7.imag > 0) {
-        return u3_7.mul(this._cw2_7).imag > 0 ? 3 : 2;
+    var v = vect.clone();
+    if (v.imag > 0) {
+      if (v.mul(this._cw3_7).imag > 0) {
+        return v.mul(this._cw2_7).imag > 0 ? 3 : 2;
       } else {
-        if (u3_7.mul(this._ccw2_7).imag > 0) {
+        if (v.mul(this._ccw2_7).imag > 0) {
           return 1;
         }
       }
     } else {
-      var l3_7 = vect.clone().mul(this._ccw3_7);
-      if (l3_7.imag < 0) {
-        return l3_7.mul(this._ccw2_7).imag > 0 ? 5 : 4;
+      if (v.mul(this._ccw3_7).imag < 0) {
+        return v.mul(this._ccw2_7).imag > 0 ? 5 : 4;
       } else {
-        if (l3_7.mul(this._cw2_7).imag < 0) {
+        if (v.mul(this._cw2_7).imag < 0) {
           return 6;
         }
       }
@@ -239,6 +239,62 @@ class Psk8Demodulator implements Demodulator {
         return half_q > 0 ? 2 : 3;
       } else {
         return half_i > 0 ? 5 : 4;
+      }
+    }
+  }
+}
+
+class Psk9Demodulator implements Demodulator {
+  private _psk3 = new Psk3Demodulator;
+
+  demodulate(vect: Complex): number {
+    var v = vect.clone();
+    var dem9 = this._psk3.demodulate(v);
+    var dem3 = this._psk3.demodulate(v.mul(vect).mul(vect));
+    switch (dem9) {
+      case 0:
+        switch (dem3) {
+          case 0: return 0;
+          case 1: return 1;
+          case 2: return 8;
+        }
+      case 1:
+        switch (dem3) {
+          case 0: return 3;
+          case 1: return 4;
+          case 2: return 2;
+        }
+      case 2:
+        switch (dem3) {
+          case 0: return 6;
+          case 1: return 7;
+          case 2: return 5;
+        }
+    }
+  }
+}
+
+class Psk10Demodulator implements Demodulator {
+  private _psk5 = new Psk5Demodulator;
+
+  demodulate(vect: Complex): number {
+    var v = vect.clone();
+    var dem5 = this._psk5.demodulate(v.mul(vect));
+    if (vect.real > 0) {
+      switch (dem5) {
+        case 0: return 0;
+        case 1: return 1;
+        case 2: return 2;
+        case 3: return 8;
+        case 4: return 9;
+      }
+    } else {
+      switch (dem5) {
+        case 0: return 5;
+        case 1: return 6;
+        case 2: return 7;
+        case 3: return 3;
+        case 4: return 4;
       }
     }
   }
@@ -348,6 +404,12 @@ class SimulatorFacade {
         that.demodulator = new Psk6Demodulator();
       } else if (m == 7) {
         that.demodulator = new Psk7Demodulator();
+      } else if (m == 8) {
+        that.demodulator = new Psk8Demodulator();
+      } else if (m == 9) {
+        that.demodulator = new Psk9Demodulator();
+      } else if (m == 10) {
+        that.demodulator = new Psk10Demodulator();
       } else {
         that.demodulator = new Psk8Demodulator();
       }
@@ -421,7 +483,7 @@ class Main {
         for (var j = 0; j < bufsize; j++) {
           var symbol = symbols[j];
 
-          if (symbol.tx_code != k) continue;
+          if (symbol.rx_code != k) continue;
 
           if (symbol.tx_code == symbol.rx_code) {
             var x = 150 + Math.round(mag * symbol.vect.real);
@@ -429,7 +491,7 @@ class Main {
             ctx.fillRect(x, y, 1, 1);
           } else {
             var d = symbol.rx_code ^ symbol.tx_code;
-            var dist = ((d >> 2) & 1) + ((d >> 1) & 1) + (d & 1);
+            var dist = ((d >> 5) & 1) + ((d >> 4) & 1) + ((d >> 3) & 1) + ((d >> 2) & 1) + ((d >> 1) & 1) + (d & 1);
             err += dist;
             var x = 150 + Math.round(mag * symbol.vect.real);
             var y = 200 - Math.round(mag * symbol.vect.imag);
