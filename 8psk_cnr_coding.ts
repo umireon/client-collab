@@ -300,6 +300,96 @@ class Psk10Demodulator implements Demodulator {
   }
 }
 
+class Psk11Demodulator implements Demodulator {
+  private _cw2_11 = Complex.polar(1, -Math.PI * 2 / 11);
+  private _cw5_11 = Complex.polar(1, -Math.PI * 5 / 11);
+  private _ccw2_11 = Complex.polar(1, Math.PI * 2 / 11);
+  private _ccw5_11 = Complex.polar(1, Math.PI * 5 / 11);
+
+  demodulate(vect: Complex): number {
+    var v = vect.clone();
+    if (v.imag > 0) {
+      if (v.mul(this._cw5_11).imag > 0) {
+        if (v.mul(this._cw2_11).imag < 0) {
+          return 3;
+        } else {
+          return v.mul(this._cw2_11).imag > 0 ? 5 : 4;
+        }
+      } else {
+        if (v.mul(this._ccw2_11).imag > 0) {
+          return 2;
+        } else {
+          if (v.mul(this._ccw2_11).imag > 0) {
+            return 1;
+          }
+        }
+      }
+    } else {
+      if (v.mul(this._ccw5_11).imag < 0) {
+        if (v.mul(this._ccw2_11).imag > 0) {
+          return 8;
+        } else {
+          return v.mul(this._ccw2_11).imag > 0 ? 7 : 6;
+        }
+      } else {
+        if (v.mul(this._cw2_11).imag < 0) {
+          return 9;
+        } else {
+          if (v.mul(this._cw2_11).imag < 0) {
+            return 10;
+          }
+        }
+      }
+    }
+    return 0;
+  }
+}
+
+class Psk13Demodulator implements Demodulator {
+  private _cw2_11 = Complex.polar(1, -Math.PI * 2 / 11);
+  private _cw5_11 = Complex.polar(1, -Math.PI * 5 / 11);
+  private _ccw2_11 = Complex.polar(1, Math.PI * 2 / 11);
+  private _ccw5_11 = Complex.polar(1, Math.PI * 5 / 11);
+
+  demodulate(vect: Complex): number {
+    var v = vect.clone();
+    if (v.imag > 0) {
+      if (v.mul(this._cw5_11).imag > 0) {
+        if (v.mul(this._cw2_11).imag < 0) {
+          return 3;
+        } else {
+          return v.mul(this._cw2_11).imag > 0 ? 5 : 4;
+        }
+      } else {
+        if (v.mul(this._ccw2_11).imag > 0) {
+          return 2;
+        } else {
+          if (v.mul(this._ccw2_11).imag > 0) {
+            return 1;
+          }
+        }
+      }
+    } else {
+      if (v.mul(this._ccw5_11).imag < 0) {
+        if (v.mul(this._ccw2_11).imag > 0) {
+          return 8;
+        } else {
+          return v.mul(this._ccw2_11).imag > 0 ? 7 : 6;
+        }
+      } else {
+        if (v.mul(this._cw2_11).imag < 0) {
+          return 9;
+        } else {
+          if (v.mul(this._cw2_11).imag < 0) {
+            return 10;
+          }
+        }
+      }
+    }
+    return 0;
+  }
+}
+
 class BasebandGenerator {
   private _m: number;
 
@@ -410,6 +500,8 @@ class SimulatorFacade {
         that.demodulator = new Psk9Demodulator();
       } else if (m == 10) {
         that.demodulator = new Psk10Demodulator();
+      } else if (m == 11) {
+        that.demodulator = new Psk11Demodulator();
       } else {
         that.demodulator = new Psk8Demodulator();
       }

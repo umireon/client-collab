@@ -333,6 +333,59 @@ var Psk10Demodulator = (function () {
     };
     return Psk10Demodulator;
 })();
+var Psk11Demodulator = (function () {
+    function Psk11Demodulator() {
+        this._cw2_11 = Complex.polar(1, -Math.PI * 2 / 11);
+        this._cw5_11 = Complex.polar(1, -Math.PI * 5 / 11);
+        this._ccw2_11 = Complex.polar(1, Math.PI * 2 / 11);
+        this._ccw5_11 = Complex.polar(1, Math.PI * 5 / 11);
+    }
+    Psk11Demodulator.prototype.demodulate = function (vect) {
+        var v = vect.clone();
+        if (v.imag > 0) {
+            if (v.mul(this._cw5_11).imag > 0) {
+                if (v.mul(this._cw2_11).imag < 0) {
+                    return 3;
+                }
+                else {
+                    return v.mul(this._cw2_11).imag > 0 ? 5 : 4;
+                }
+            }
+            else {
+                if (v.mul(this._ccw2_11).imag > 0) {
+                    return 2;
+                }
+                else {
+                    if (v.mul(this._ccw2_11).imag > 0) {
+                        return 1;
+                    }
+                }
+            }
+        }
+        else {
+            if (v.mul(this._ccw5_11).imag < 0) {
+                if (v.mul(this._ccw2_11).imag > 0) {
+                    return 8;
+                }
+                else {
+                    return v.mul(this._ccw2_11).imag > 0 ? 7 : 6;
+                }
+            }
+            else {
+                if (v.mul(this._cw2_11).imag < 0) {
+                    return 9;
+                }
+                else {
+                    if (v.mul(this._cw2_11).imag < 0) {
+                        return 10;
+                    }
+                }
+            }
+        }
+        return 0;
+    };
+    return Psk11Demodulator;
+})();
 var BasebandGenerator = (function () {
     function BasebandGenerator(m) {
         this._m = m;
@@ -427,6 +480,9 @@ var SimulatorFacade = (function () {
             }
             else if (m == 10) {
                 that.demodulator = new Psk10Demodulator();
+            }
+            else if (m == 11) {
+                that.demodulator = new Psk11Demodulator();
             }
             else {
                 that.demodulator = new Psk8Demodulator();
